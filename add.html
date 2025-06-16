@@ -1,0 +1,45 @@
+<input type="file" id="fileInput" />
+<button onclick="uploadToGitHub()">Upload</button>
+
+<script>
+  const encodedToken = "Z2hwX1dKMFE3eW9hOGQxQTZDTDNSS2twUVZPVGdyODNTdTFKc0xzYw=="; // ganti dengan hasil Base64 token kamu
+  const token = atob(encodedToken);
+  const username = "lngnyntk";
+  const repo = "e-taqdim";
+  const branch = "main";
+
+  async function uploadToGitHub() {
+    const fileInput = document.getElementById("fileInput");
+    const file = fileInput.files[0];
+    if (!file) {
+      alert("No file selected!");
+      return;
+    }
+
+    const content = await file.text();
+    const base64Content = btoa(content);
+
+    const path = file.name;
+    const url = `https://api.github.com/repos/${username}/${repo}/contents/model/${path}`;
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: `Upload ${file.name}`,
+        content: base64Content,
+        branch: branch
+      })
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      alert("Upload berhasil: " + result.content.path);
+    } else {
+      alert("Error: " + result.message);
+    }
+  }
+</script>

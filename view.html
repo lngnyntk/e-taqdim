@@ -13,8 +13,6 @@
   </style>
 </head>
 <body>
-  <h1>3D Model Viewer</h1>
-
   <model-viewer
     id="viewer"
     alt="A 3D model"
@@ -31,7 +29,8 @@
 
     if (model) {
       const baseUrl = "https://raw.githubusercontent.com/lngnyntk/e-taqdim/main/model/";
-      const fullUrl = baseUrl + model;
+      const fullUrl = baseUrl + model + typeFile;
+      const typeFile = ".glb"
       console.log("Memuat model:", fullUrl);
       document.getElementById("viewer").src = fullUrl;
     } else {

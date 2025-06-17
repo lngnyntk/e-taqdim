@@ -1,4 +1,23 @@
-async function uploadToGitHub() {
+<input type="file" id="fileInput" />
+<button onclick="uploadToGitHub()">Upload</button>
+
+<script>
+  const uuid = sessionStorage.getItem("uuid_token");
+  const exp = parseInt(sessionStorage.getItem("uuid_exp"));
+  const now = Date.now();
+
+  if (!uuid || isNaN(exp) || now > exp) {
+    alert("🚫 Akses ditolak: Token tidak sah atau kedaluwarsa.");
+    window.location.href = "index.html";
+  }
+
+  const encodedToken = "Z2hwX1dKMFE3eW9hOGQxQTZDTDNSS2twUVZPVGdyODNTdTFKc0xzYw=="; // ganti dengan hasil Base64 token kamu
+  const token = atob(encodedToken);
+  const username = "lngnyntk";
+  const repo = "e-taqdim";
+  const branch = "main";
+
+  async function uploadToGitHub() {
   const fileInput = document.getElementById("fileInput");
   const file = fileInput.files[0];
   if (!file) {
@@ -6,8 +25,12 @@ async function uploadToGitHub() {
     return;
   }
 
-  const content = await file.text();
-  const base64Content = btoa(unescape(encodeURIComponent(content))); // ← aman untuk Unicode
+  const arrayBuffer = await file.arrayBuffer(); // ← aman untuk file biner
+  const uint8Array = new Uint8Array(arrayBuffer);
+
+  // Manual encode ke base64 dari byte array
+  const binaryString = uint8Array.reduce((data, byte) => data + String.fromCharCode(byte), '');
+  const base64Content = btoa(binaryString);
 
   const path = file.name;
   const url = `https://api.github.com/repos/${username}/${repo}/contents/model/${path}`;
@@ -27,8 +50,9 @@ async function uploadToGitHub() {
 
   const result = await response.json();
   if (response.ok) {
-    alert("Upload berhasil: " + result.content.path);
+    alert("✅ Upload berhasil: " + result.content.path);
   } else {
-    alert("Error: " + result.message);
+    alert("❌ Error: " + result.message);
   }
 }
+</script>

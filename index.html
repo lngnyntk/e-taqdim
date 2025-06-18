@@ -6,26 +6,7 @@
   <title>e-taqdim</title>
 </head>
 <body>
-  <button onclick="getPassword()">Masukkan Password</button>
-
-  <script>
-  function getPassword() {
-    const password = prompt("Masukkan password:");
-
-    if (password === "rahasia") {
-      const uuid = crypto.randomUUID();
-      const exp = Date.now() + 60 * 1000; // 1 menit ke depan
-
-      sessionStorage.setItem("uuid_token", uuid);
-      sessionStorage.setItem("uuid_exp", exp.toString());
-
-      window.location.href = "add.html";
-    } else {
-      alert("Password salah!");
-    }
-  }
-  </script>
-
+  <a href="add.html?key=e-taqdim">Tambah</a>
   <a href="https://lngnyntk.github.io/e-taqdim/view.html?model=psc-baleho-1">Contoh View</a>
 </body>
 </html>

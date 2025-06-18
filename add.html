@@ -10,11 +10,10 @@
 <button onclick="uploadToGitHub()">Upload</button>
 
 <script>
-  const uuid = sessionStorage.getItem("uuid_token");
-  const exp = parseInt(sessionStorage.getItem("uuid_exp"));
-  const now = Date.now();
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get("key");
 
-  if (!uuid || isNaN(exp) || now > exp) {
+  if (key !== "e-taqdim") {
     alert("🚫 Akses ditolak: Token tidak sah atau kedaluwarsa.");
     window.location.href = "index.html";
   }

@@ -9,6 +9,20 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Definisikan navigasi di head agar tombol bisa diklik segera tanpa menunggu database load
+        function showPage(page) {
+            const indexPage = document.getElementById('page-index');
+            const tambahPage = document.getElementById('page-tambah');
+            
+            if (indexPage && tambahPage) {
+                indexPage.classList.toggle('hidden', page !== 'index');
+                tambahPage.classList.toggle('hidden', page !== 'tambah');
+            }
+            if (page === 'index' && typeof loadModels === 'function') loadModels();
+        }
+    </script>
     <style>
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -101,13 +115,32 @@
     </main>
 
     <script>
-        // Database simulasi di LocalStorage
-        let models = JSON.parse(localStorage.getItem('et_models')) || [];
+        const supabaseUrl = "https://jrssycfghdwoiivfwosf.supabase.co";
+        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyc3N5Y2ZnaGR3b2lpdmZ3b3NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTgxMzEsImV4cCI6MjA5MDQ5NDEzMX0.rWDF9mbeqmgVnshJSBD456Gr-i0w2-4cM8pq_spf1mA";
+        
+        let supabase;
+        if (window.supabase) {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        } else {
+            console.error("Library Supabase gagal dimuat.");
+        }
 
-        function showPage(page) {
-            document.getElementById('page-index').classList.toggle('hidden', page !== 'index');
-            document.getElementById('page-tambah').classList.toggle('hidden', page !== 'tambah');
-            if (page === 'index') renderByAcara();
+        let models = [];
+
+        async function loadModels() {
+            if (!supabase) return;
+            try {
+                const { data, error } = await supabase
+                    .from('models')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                models = data || [];
+                renderByAcara();
+            } catch (error) {
+                console.error("Gagal load data:", error);
+            }
         }
 
         function updateFilterOptions() {
@@ -115,7 +148,7 @@
             if (!select) return;
             
             const currentFilter = select.value;
-            const uniqueAcara = [...new Set(models.map(m => m.acara))];
+            const uniqueAcara = [...new Set((models || []).map(m => m.acara))];
             
             select.innerHTML = '<option value="all">Semua Acara</option>';
             uniqueAcara.sort().forEach(acara => {
@@ -189,38 +222,76 @@
             }
         }
 
-        document.getElementById('form-tambah').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const fileInput = document.getElementById('input-file');
-            const acara = document.getElementById('input-acara').value;
-            const bentuk = document.getElementById('input-bentuk').value;
+        document.getElementById('form-tambah').addEventListener('submit', async function(e) {
+    e.preventDefault();
 
-            // Menentukan index berdasarkan jumlah bentuk yang sama di acara tersebut
-            const indexBaru = models.filter(m => m.acara === acara && m.bentuk === bentuk).length + 1;
-            const finalPath = `/model/${acara}/${bentuk}-${indexBaru}.glb`;
+    const fileInput = document.getElementById('input-file');
+    const acara = document.getElementById('input-acara').value;
+    const bentuk = document.getElementById('input-bentuk').value;
+    const file = fileInput.files[0];
 
-            // Menggunakan FileReader untuk mendapatkan data URL (untuk simulasi tampilan)
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const newModel = {
-                    id: Date.now(),
-                    acara: acara,
-                    bentuk: bentuk,
-                    path: finalPath,
-                    url: event.target.result // Blob/DataURL untuk ditampilkan
-                };
+    const indexBaru = models.filter(m => m.acara === acara && m.bentuk === bentuk).length + 1;
+    const safeAcara = acara.replace(/\s+/g, "-").toLowerCase();
+const safeBentuk = bentuk.replace(/\s+/g, "-").toLowerCase();
 
-                models.push(newModel);
-                localStorage.setItem('et_models', JSON.stringify(models));
-                alert('Model berhasil ditambahkan ke simulasi path: ' + finalPath);
-                showPage('index');
-                document.getElementById('form-tambah').reset();
-            };
-            reader.readAsDataURL(fileInput.files[0]);
+const fileName = `${safeAcara}/${safeBentuk}-${indexBaru}.glb`;
+
+    // Upload file
+    const { error } = await supabase.storage
+        .from('models')
+        .upload(fileName, file, { 
+            upsert: true 
         });
 
+    if (error) {
+        console.error("Storage Error:", error);
+        alert("Upload gagal: " + error.message);
+        return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+        .from('models')
+        .getPublicUrl(fileName);
+
+    // 🔥 Simpan ke database
+    const { error: dbError } = await supabase.from('models').insert([
+        {
+            acara: acara,
+            bentuk: bentuk,
+            path: fileName,
+            url: publicUrlData.publicUrl
+        }
+        
+    ]);
+
+    
+if (dbError) {
+    console.error("Database Error:", dbError);
+    alert("Gagal simpan DB: " + dbError.message);
+    return;
+}
+
+    alert("Berhasil disimpan!");
+
+    showPage('index');
+    document.getElementById('form-tambah').reset();
+
+    // reload data
+    loadModels();
+    
+});
+
         // Load awal
-        renderByAcara();
+        loadModels();
+        
+        if (supabase) {
+            supabase
+                .channel('models-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'models' }, payload => {
+                    loadModels();
+                })
+                .subscribe();
+        }
     </script>
 </body>
 </html>

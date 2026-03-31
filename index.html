@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Taqdim 3D AR Viewer</title>
+    <!-- Google Model Viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #fcfcfd; 
+        }
+        model-viewer {
+            width: 100%;
+            height: 280px;
+            background-color: #f1f5f9;
+            border-radius: 1rem;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 bg-white/70 backdrop-blur-lg border-b border-slate-100">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
+                    <span class="text-white font-bold text-sm">E</span>
+                </div>
+                <span class="font-bold tracking-tight text-lg">E-TAQDIM</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="showPage('index')" class="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition">Beranda</button>
+                <button onclick="showPage('tambah')" class="text-sm font-semibold bg-indigo-600 text-white px-5 py-2.5 rounded-full hover:bg-indigo-700 transition shadow-md shadow-indigo-100">Tambah</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Index Page -->
+    <main id="page-index" class="max-w-6xl mx-auto px-6 py-10">
+        <header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+                <h1 class="text-4xl font-bold tracking-tight mb-2">Katalog 3D AR</h1>
+                <p class="text-slate-500">Kelola dan tampilkan model 3D berdasarkan acara Anda.</p>
+            </div>
+            <div class="min-w-[220px]">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Filter Berdasarkan Acara</label>
+                <select id="filter-acara" onchange="renderByAcara(this.value)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-sm font-semibold text-slate-700 transition cursor-pointer shadow-sm hover:border-indigo-300">
+                    <option value="all">Semua Acara</option>
+                </select>
+            </div>
+        </header>
+
+        <div id="container-acara" class="space-y-16">
+            <!-- Konten dinamis akan di-render di sini -->
+        </div>
+    </main>
+
+    <!-- Tambah Page -->
+    <main id="page-tambah" class="max-w-xl mx-auto px-6 py-20 hidden">
+        <div class="bg-white p-8 rounded-3xl shadow-xl shadow-slate-100 border border-slate-100">
+            <h2 class="text-2xl font-bold mb-6">Tambah Model Baru</h2>
+            <form id="form-tambah" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700">File 3D (.glb)</label>
+                    <input type="file" id="input-file" accept=".glb" required
+                        class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700">Nama Acara</label>
+                    <input type="text" id="input-acara" placeholder="Contoh: Wedding A & B" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700">Bentuk</label>
+                    <input type="text" id="input-bentuk" placeholder="Contoh: Cincin, Meja, Dekor" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                </div>
+                <div class="pt-4 flex flex-col gap-3">
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">Simpan ke Katalog</button>
+                    <button type="button" onclick="showPage('index')" class="w-full text-slate-500 font-semibold py-3 transition">Batal</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Database simulasi di LocalStorage
+        let models = JSON.parse(localStorage.getItem('et_models')) || [];
+
+        function showPage(page) {
+            document.getElementById('page-index').classList.toggle('hidden', page !== 'index');
+            document.getElementById('page-tambah').classList.toggle('hidden', page !== 'tambah');
+            if (page === 'index') renderByAcara();
+        }
+
+        function updateFilterOptions() {
+            const select = document.getElementById('filter-acara');
+            if (!select) return;
+            
+            const currentFilter = select.value;
+            const uniqueAcara = [...new Set(models.map(m => m.acara))];
+            
+            select.innerHTML = '<option value="all">Semua Acara</option>';
+            uniqueAcara.sort().forEach(acara => {
+                const option = document.createElement('option');
+                option.value = acara;
+                option.textContent = acara;
+                select.appendChild(option);
+            });
+            
+            if (uniqueAcara.includes(currentFilter)) select.value = currentFilter;
+        }
+
+        function renderByAcara(filter = 'all') {
+            const container = document.getElementById('container-acara');
+            container.innerHTML = '';
+            updateFilterOptions();
+
+            if (models.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
+                        <p class="text-slate-400">Belum ada data model. Silakan tambah model baru.</p>
+                    </div>`;
+                return;
+            }
+
+            let displayModels = models;
+            if (filter !== 'all') {
+                displayModels = models.filter(m => m.acara === filter);
+            }
+
+            // Mengelompokkan berdasarkan Acara
+            const grouped = displayModels.reduce((acc, obj) => {
+                const key = obj.acara;
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(obj);
+                return acc;
+            }, {});
+
+            for (const acara in grouped) {
+                const section = document.createElement('section');
+                section.className = 'animate-fadeIn';
+                section.innerHTML = `
+                    <div class="flex justify-between items-end mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">${acara}</h2>
+                        <span class="text-sm font-medium text-slate-400">${grouped[acara].length} Item</span>
+                    </div>
+                    <div class="flex overflow-x-auto gap-6 pb-4 hide-scrollbar snap-x snap-mandatory">
+                        ${grouped[acara].map(item => `
+                            <div class="min-w-[300px] max-w-[300px] snap-start bg-white rounded-3xl p-4 shadow-sm border border-slate-100">
+                                <model-viewer 
+                                    src="${item.url}" 
+                                    ar ar-modes="webxr scene-viewer quick-look" 
+                                    camera-controls 
+                                    shadow-intensity="1"
+                                    auto-rotate>
+                                    <button slot="ar-button" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold absolute bottom-4 left-1/2 -translate-x-1/2 shadow-lg">
+                                        LIHAT AR
+                                    </button>
+                                </model-viewer>
+                                <div class="mt-4 px-2">
+                                    <h4 class="font-bold text-lg text-slate-800">${item.bentuk}</h4>
+                                    <p class="text-[10px] font-mono text-slate-400 mt-2 bg-slate-50 p-2 rounded-lg break-all">
+                                        Path: ${item.path}
+                                    </p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+            }
+        }
+
+        document.getElementById('form-tambah').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('input-file');
+            const acara = document.getElementById('input-acara').value;
+            const bentuk = document.getElementById('input-bentuk').value;
+
+            // Menentukan index berdasarkan jumlah bentuk yang sama di acara tersebut
+            const indexBaru = models.filter(m => m.acara === acara && m.bentuk === bentuk).length + 1;
+            const finalPath = `/model/${acara}/${bentuk}-${indexBaru}.glb`;
+
+            // Menggunakan FileReader untuk mendapatkan data URL (untuk simulasi tampilan)
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const newModel = {
+                    id: Date.now(),
+                    acara: acara,
+                    bentuk: bentuk,
+                    path: finalPath,
+                    url: event.target.result // Blob/DataURL untuk ditampilkan
+                };
+
+                models.push(newModel);
+                localStorage.setItem('et_models', JSON.stringify(models));
+                alert('Model berhasil ditambahkan ke simulasi path: ' + finalPath);
+                showPage('index');
+                document.getElementById('form-tambah').reset();
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        });
+
+        // Load awal
+        renderByAcara();
+    </script>
+</body>
+</html>

@@ -118,9 +118,9 @@
         const supabaseUrl = "https://jrssycfghdwoiivfwosf.supabase.co";
         const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyc3N5Y2ZnaGR3b2lpdmZ3b3NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTgxMzEsImV4cCI6MjA5MDQ5NDEzMX0.rWDF9mbeqmgVnshJSBD456Gr-i0w2-4cM8pq_spf1mA";
         
-        let supabase;
+        let supabaseClient;
         if (window.supabase) {
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         } else {
             console.error("Library Supabase gagal dimuat.");
         }
@@ -128,9 +128,9 @@
         let models = [];
 
         async function loadModels() {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('models')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -237,7 +237,7 @@ const safeBentuk = bentuk.replace(/\s+/g, "-").toLowerCase();
 const fileName = `${safeAcara}/${safeBentuk}-${indexBaru}.glb`;
 
     // Upload file
-    const { error } = await supabase.storage
+    const { error } = await supabaseClient.storage
         .from('models')
         .upload(fileName, file, { 
             upsert: true 
@@ -249,12 +249,12 @@ const fileName = `${safeAcara}/${safeBentuk}-${indexBaru}.glb`;
         return;
     }
 
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseClient.storage
         .from('models')
         .getPublicUrl(fileName);
 
     // 🔥 Simpan ke database
-    const { error: dbError } = await supabase.from('models').insert([
+    const { error: dbError } = await supabaseClient.from('models').insert([
         {
             acara: acara,
             bentuk: bentuk,
@@ -284,8 +284,8 @@ if (dbError) {
         // Load awal
         loadModels();
         
-        if (supabase) {
-            supabase
+        if (supabaseClient) {
+            supabaseClient
                 .channel('models-channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'models' }, payload => {
                     loadModels();
